@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace IMJunior
 {
@@ -6,113 +7,120 @@ namespace IMJunior
     {
         static void Main(string[] args)
         {
-            BankSystemFabric bankSystemFabric = new BankSystemFabric();
-            OrderForm orderForm = new OrderForm(bankSystemFabric);
-            PaymentHandler paymentHandler = new PaymentHandler();
+            BankSystemFactoryProvider bankSystemFabricProvider = new BankSystemFactoryProvider();
+            OrderForm orderForm = new OrderForm();
+            
+            IBankSystemFabric bankSystemFabric = bankSystemFabricProvider.GetFabric(orderForm.GetBankId(bankSystemFabricProvider.SystemIDs));
+            PaymentHandler paymentHandler = new PaymentHandler(bankSystemFabric);
 
-            IBankSystem systemId = orderForm.ShowForm();
-
-            systemId.CallApi();
-            systemId.TryPay();
-            paymentHandler.ShowPaymentResult(systemId);
+            paymentHandler.Pay();
         }
     }
 
     public class OrderForm
     {
-        private readonly BankSystemFabric _bankSystemFabric;
-
-        public OrderForm(BankSystemFabric bankSystemFabric)
+        public string GetBankId(IEnumerable<string> bankSystemFabricIDs)
         {
-            if (bankSystemFabric == null)
-                throw new ArgumentNullException();
+            Console.WriteLine("Мы принимаем: ");
 
-            _bankSystemFabric = bankSystemFabric;
-        }
-
-        public IBankSystem ShowForm()
-        {
-            Console.WriteLine($"Мы принимаем: {Banks.Qiwi}, {Banks.WebMoney}, {Banks.Card}");
+            foreach (string id in bankSystemFabricIDs)
+                Console.Write($"{id}, ");
 
             Console.WriteLine("Какое системой вы хотите совершить оплату?");
 
-            IBankSystem chosenSystem = _bankSystemFabric.Create(Console.ReadLine());
-
-            if (chosenSystem == null)
-                throw new ArgumentNullException();
-
-            return chosenSystem;
+            return Console.ReadLine();
         }
     }
 
-    public class BankSystemFabric
+    public class BankSystemFactoryProvider
     {
-        public IBankSystem Create(string name)
+        public Dictionary<string, IBankSystemFabric> _fabrics = new Dictionary<string, IBankSystemFabric>()
         {
-            switch(name)
-            {
-                case nameof(Banks.Qiwi):
-                    return new Qiwi("Quwi");
-                case nameof(Banks.WebMoney):
-                    return new WebMoney("WebMoney");
-                case nameof(Banks.Card):
-                    return new Card("Card");
-                default:
-                    return null;
-            }
+            {"Qiwi", new QiwiFabric() },
+            {"WebMoney", new WebMoneyFabric() },
+            {"Card", new CardFabric() }
+        };
+
+        public IEnumerable<string> SystemIDs => _fabrics.Keys;
+
+        public IBankSystemFabric GetFabric(string systemId)
+        {
+            if(string.IsNullOrWhiteSpace(systemId)) 
+                throw new ArgumentNullException();
+
+            if (_fabrics.TryGetValue(systemId, out IBankSystemFabric bankSystemFabric) == false)
+                throw new ArgumentException();
+
+            return bankSystemFabric;
+        }
+    }
+
+    public class QiwiFabric : IBankSystemFabric 
+    {
+        public IBankSystem Create()
+        {
+            return new Qiwi();
+        }
+    }
+
+    public class WebMoneyFabric : IBankSystemFabric 
+    {
+        public IBankSystem Create()
+        {
+            return new WebMoney();
+        }
+    }
+
+    public class CardFabric : IBankSystemFabric 
+    {
+        public IBankSystem Create()
+        {
+            return new Card();
         }
     }
 
     public class PaymentHandler
     {
-        public void ShowPaymentResult(IBankSystem systemId)
+        private readonly IBankSystem _bankSystem;
+
+        public PaymentHandler(IBankSystemFabric bankSystemFabric) 
         {
-            systemId.ShowInfo();
+            if (bankSystemFabric == null)
+                throw new ArgumentNullException();
+
+            _bankSystem = bankSystemFabric.Create();
+        }
+
+        public void Pay()
+        {
+            _bankSystem.CallApi();
+            _bankSystem.TryPay();
+            _bankSystem.ShowInfo();
+
             Console.WriteLine("Оплата прошла успешно!");
         }
     }
 
-    public class BankSystem
+    public class Qiwi : IBankSystem
     {
-        public BankSystem(string name)
-        {
-            if(name == null) 
-                throw new ArgumentNullException();
-
-            Name = name;
-        }
-    
-        public string Name { get; private set; }
-    }
-
-    public class Qiwi : BankSystem, IBankSystem
-    {
-        public Qiwi(string name) : base(name)
-        {
-        }
-
         public void CallApi()
         {
-            Console.WriteLine("Перевод на страницу QIWI...");
+            Console.WriteLine($"Перевод на страницу Qiwi...");
         }
 
         public void ShowInfo()
         {
-            Console.WriteLine($"Вы оплатили с помощью {Name}");
+            Console.WriteLine($"Вы оплатили с помощью Qiwi");
         }
 
         public void TryPay()
         {
-            Console.WriteLine("Проверка платежа через QIWI...");
+            Console.WriteLine($"Проверка платежа через Qiwi...");
         }
     }
 
-    public class WebMoney : BankSystem, IBankSystem
+    public class WebMoney : IBankSystem
     {
-        public WebMoney(string name) : base(name)
-        {
-        }
-
         public void CallApi()
         {
             Console.WriteLine("Вызов API WebMoney...");
@@ -120,7 +128,7 @@ namespace IMJunior
 
         public void ShowInfo()
         {
-            Console.WriteLine($"Вы оплатили с помощью {Name}");
+            Console.WriteLine($"Вы оплатили с помощью WebMoney");
         }
 
         public void TryPay()
@@ -129,12 +137,8 @@ namespace IMJunior
         }
     }
 
-    public class Card : BankSystem, IBankSystem
+    public class Card : IBankSystem
     {
-        public Card(string name) : base(name)
-        {
-        }
-
         public void CallApi()
         {
             Console.WriteLine("Вызов API банка эмитера карты Card...");
@@ -142,7 +146,7 @@ namespace IMJunior
 
         public void ShowInfo()
         {
-            Console.WriteLine($"Вы оплатили с помощью {Name}");
+            Console.WriteLine($"Вы оплатили с помощью Card");
             
         }
 
@@ -158,6 +162,11 @@ namespace IMJunior
         void CallApi();
         void TryPay();
 
+    }
+
+    public interface IBankSystemFabric
+    {
+        IBankSystem Create();
     }
 
     public enum Banks
