@@ -9,7 +9,9 @@ namespace IMJunior
         {
             BankSystemFabricProvider bankSystemFabricProvider = new BankSystemFabricProvider();
             OrderForm orderForm = new OrderForm();
+
             string fabricID = orderForm.GetBankId(bankSystemFabricProvider.FabricIDs);
+
             IBankSystemFabric bankSystemFabric = bankSystemFabricProvider.GetFabric(fabricID);
             PaymentHandler paymentHandler = new PaymentHandler(bankSystemFabric);
 
