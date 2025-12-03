@@ -7,10 +7,10 @@ namespace IMJunior
     {
         static void Main(string[] args)
         {
-            BankSystemFactoryProvider bankSystemFabricProvider = new BankSystemFactoryProvider();
+            BankSystemFabricProvider bankSystemFabricProvider = new BankSystemFabricProvider();
             OrderForm orderForm = new OrderForm();
-            
-            IBankSystemFabric bankSystemFabric = bankSystemFabricProvider.GetFabric(orderForm.GetBankId(bankSystemFabricProvider.SystemIDs));
+            string fabricID = orderForm.GetBankId(bankSystemFabricProvider.FabricIDs);
+            IBankSystemFabric bankSystemFabric = bankSystemFabricProvider.GetFabric(fabricID);
             PaymentHandler paymentHandler = new PaymentHandler(bankSystemFabric);
 
             paymentHandler.Pay();
@@ -32,7 +32,7 @@ namespace IMJunior
         }
     }
 
-    public class BankSystemFactoryProvider
+    public class BankSystemFabricProvider
     {
         public Dictionary<string, IBankSystemFabric> _fabrics = new Dictionary<string, IBankSystemFabric>()
         {
@@ -41,14 +41,14 @@ namespace IMJunior
             {"Card", new CardFabric() }
         };
 
-        public IEnumerable<string> SystemIDs => _fabrics.Keys;
+        public IEnumerable<string> FabricIDs => _fabrics.Keys;
 
-        public IBankSystemFabric GetFabric(string systemId)
+        public IBankSystemFabric GetFabric(string fabricId)
         {
-            if(string.IsNullOrWhiteSpace(systemId)) 
+            if(string.IsNullOrWhiteSpace(fabricId)) 
                 throw new ArgumentNullException();
 
-            if (_fabrics.TryGetValue(systemId, out IBankSystemFabric bankSystemFabric) == false)
+            if (_fabrics.TryGetValue(fabricId, out IBankSystemFabric bankSystemFabric) == false)
                 throw new ArgumentException();
 
             return bankSystemFabric;
@@ -167,12 +167,5 @@ namespace IMJunior
     public interface IBankSystemFabric
     {
         IBankSystem Create();
-    }
-
-    public enum Banks
-    {
-        Qiwi,
-        WebMoney,
-        Card
     }
 }
